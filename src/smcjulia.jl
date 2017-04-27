@@ -5,6 +5,7 @@ module SMCJulia
     
     include("mathutils.jl")
     include("hmm.jl")
+    include("smc.jl")
     include("tests.jl")
 
 end

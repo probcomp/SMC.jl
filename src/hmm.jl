@@ -120,7 +120,7 @@ end
 
 function weight(init::HMMPriorInitializer, cur::Int)
     # the likelihood of the observation given state cur
-    pdf(Categorical(init.hmm.observation_model[cur,:]), observation)
+    pdf(Categorical(init.hmm.observation_model[cur,:]), init.observation)
 end
 
 immutable HMMPriorIncrementer
@@ -132,13 +132,22 @@ function sample(incr::HMMPriorIncrementer, prev::Int)
     rand(Categorical(incr.hmm.transition_model[prev,:]))
 end
 
-function weight(init::HMMPriorIncrementer, prev::Int, cur::Int)
-    pdf(Categorical(init.hmm.observation_model[cur,:]), observation)
+function weight(incr::HMMPriorIncrementer, prev::Int, cur::Int)
+    pdf(Categorical(incr.hmm.observation_model[cur,:]), incr.observation)
 end
 
 immutable HMMConditionalInitializer
     hmm::HiddenMarkovModel
     observation::Int
+end
+
+function HMMPriorSMCScheme(hmm::HiddenMarkovModel, observations::Array{Int,1}, num_particles::Int)
+    initializer = HMMPriorInitializer(hmm, observations[1])
+    incrementers = Array{Any,1}(length(observations) - 1)
+    for i = 2:length(observations)
+        incrementers[i-1] = HMMPriorIncrementer(hmm, observations[i])
+    end
+    StateSpaceSMCScheme(initializer, incrementers, num_particles)
 end
 
 function sample(init::HMMConditionalInitializer)

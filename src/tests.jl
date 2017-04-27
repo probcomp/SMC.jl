@@ -172,3 +172,30 @@ end
     end
 
 end
+
+@testset "smc tests" begin
+
+    hmm = HiddenMarkovModel(
+            [0.4, 0.6], # prior
+            [0.7 0.3; 
+             0.1 0.9], # transition
+            [0.6 0.3 0.1; 
+             0.1 0.4 0.5]) # observation
+    observations = [1, 3, 2]
+
+    num_particles = 1000
+    scheme = HMMPriorSMCScheme(hmm, observations, num_particles)
+    output, ml_estimate = state_space_smc(scheme)
+    println(output)
+    println(ml_estimate)
+    actual = marginal_likelihood(hmm, observations)
+    println(actual)
+
+
+    # initializer
+    #inIrementers::Array
+    #num_particles::Int
+end
+
+
+
