@@ -26,7 +26,7 @@ end
     transition_model = [0.7 0.3; 
                         0.1 0.9]
     observation_model = [0.6 0.3 0.1; 
-                         0.2 0.3 0.5]
+                         0.1 0.4 0.5]
     hmm = HiddenMarkovModel(initial_state_prior, 
                             transition_model, 
                             observation_model)
@@ -42,19 +42,19 @@ end
         expected = begin
 
             # p(x_2 = 1, y_1 = 1, y_2 = 3) = p(x_1 = 1, x_2 = 1, y_1 = 1, y_2 = 3) + p(x_1 = 2, x_2 = 1, y_1 = 1, y_2 = 3)
-            shared_x2_eq_1 = ((0.4 * 0.7 * 0.6 * 0.1) + (0.6 * 0.1 * 0.2 * 0.1))
+            shared_x2_eq_1 = ((0.4 * 0.7 * 0.6 * 0.1) + (0.6 * 0.1 * 0.1 * 0.1))
 
             # p(x_2 = 2, y_1 = 1, y_2 = 3) = p(x_1 = 1, x_2 = 2, y_1 = 1, y_2 = 3) + p(x_1 = 2, x_2 = 2, y_1 = 1, y_2 = 3)
-            shared_x2_eq_2 = ((0.4 * 0.3 * 0.6 * 0.5) + (0.6 * 0.9 * 0.2 * 0.5)) # 
+            shared_x2_eq_2 = ((0.4 * 0.3 * 0.6 * 0.5) + (0.6 * 0.9 * 0.1 * 0.5)) # 
 
             f11 = 0.4 # p(x_1 = 1)
             f12 = 0.6 # p(x_1 = 2)
 
             # p(x_2 = 1, y_1 = 1) = p(x_1 = 1, x_2 = 1, y_1 = 1) + p(x_1 = 2, x_2 = 1, y_1 = 1) 
-            f21 = (0.4 * 0.7 * 0.6) + (0.6 * 0.1 * 0.2) 
+            f21 = (0.4 * 0.7 * 0.6) + (0.6 * 0.1 * 0.1) 
 
             # p(x_2 = 2, y_1 = 1) = p(x_1 = 1, x_2 = 2, y_1 = 1) + p(x_1 = 2, x_2 = 2, y_1 = 1) 
-            f22 = (0.4 * 0.3 * 0.6) + (0.6 * 0.9 * 0.2)
+            f22 = (0.4 * 0.3 * 0.6) + (0.6 * 0.9 * 0.1)
 
             # p(x_3 = 1, y_1 = 1, y_2 = 3) = p(x_2 = 1, x_3 = 1, y_1 = 1, y_2 = 3) + p(x_2 = 2, x_3 = 1, y_1 = 1, y_2 = 3)
             f31 = shared_x2_eq_1 * 0.7 + shared_x2_eq_2 * 0.1 
@@ -70,10 +70,23 @@ end
         @test isapprox(exp(log_forward_pass(hmm, observations)), expected)
     end
 
-    #@testset "marginal likelihoods" begin
-        #@test isapprox(marginal_likelihood(hmm, observations),
-                       #exp(log_marginal_likelihood(hmm, observations)))
-        # TODO check against manually computed value
-    #end
+    @testset "marginal likelihoods" begin
+        actual = marginal_likelihood(hmm, observations)
+
+        expected = (
+              (0.4 * 0.7 * 0.7 * 0.6 * 0.1 * 0.3) + # x = (1, 1, 1)
+              (0.4 * 0.7 * 0.3 * 0.6 * 0.1 * 0.4) + # x = (1, 1, 2)
+              (0.4 * 0.3 * 0.1 * 0.6 * 0.5 * 0.3) + # x = (1, 2, 1)
+              (0.4 * 0.3 * 0.9 * 0.6 * 0.5 * 0.4) + # x = (1, 2, 2)
+              (0.6 * 0.1 * 0.7 * 0.1 * 0.1 * 0.3) + # x = (2, 1, 1)
+              (0.6 * 0.1 * 0.3 * 0.1 * 0.1 * 0.4) + # x = (2, 1, 2)
+              (0.6 * 0.9 * 0.1 * 0.1 * 0.5 * 0.3) + # x = (2, 2, 1)
+              (0.6 * 0.9 * 0.9 * 0.1 * 0.5 * 0.4)) # x = (2, 2, 2)
+        
+        @test isapprox(actual, expected)
+
+        # check that log space agrees
+        @test isapprox(actual, exp(log_marginal_likelihood(hmm, observations)))
+    end
 
 end
