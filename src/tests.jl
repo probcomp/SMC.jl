@@ -192,6 +192,10 @@ end
     expected = log_marginal_likelihood(hmm, observations)
     @test isapprox(log_ml_estimate, expected, atol=0.1, rtol=0)
 
+    # conditional SMC (take output from above as input)
+    log_ml_estimate = no_rejuvenation_conditional_smc(scheme, output)
+    @test isapprox(log_ml_estimate, expected, atol=0.1, rtol=0)
+
     # SMC with conditional proposal
     srand(1)
     num_particles = 10000
@@ -201,4 +205,7 @@ end
     expected = log_marginal_likelihood(hmm, observations)
     @test isapprox(log_ml_estimate, expected, atol=0.02, rtol=0)
 
+    # conditional SMC (take output from above as input)
+    log_ml_estimate = no_rejuvenation_conditional_smc(scheme, output)
+    @test isapprox(log_ml_estimate, expected, atol=0.1, rtol=0)
 end
