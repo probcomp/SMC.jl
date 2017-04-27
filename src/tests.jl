@@ -209,3 +209,58 @@ end
     log_ml_estimate = no_rejuvenation_conditional_smc(scheme, output)
     @test isapprox(log_ml_estimate, expected, atol=0.1, rtol=0)
 end
+
+@testset "smc sandwiching the evidence with exact sampling" begin
+
+    hmm = HiddenMarkovModel(
+            [0.4, 0.6], # prior
+            [0.7 0.3; 
+             0.1 0.9], # transition
+            [0.6 0.3 0.1; 
+             0.1 0.4 0.5]) # observation
+    observations = [1, 3, 2]
+
+    # SMC with conditional proposal
+    srand(1)
+    num_reps = 1000
+    all_num_particles = [1, 3, 10, 30, 100]
+    lower_bound_raw_data = Array{Float64, 2}(length(all_num_particles), num_reps)
+    upper_bound_raw_data = Array{Float64, 2}(length(all_num_particles), num_reps)
+    for (i, num_particles) in enumerate(all_num_particles)
+        scheme = HMMConditionalSMCScheme(hmm, observations, num_particles)
+        for j = 1:num_reps
+            output, lml_estimate = no_rejuvenation_smc(scheme)
+            lower_bound_raw_data[i, j] = lml_estimate 
+        end
+        for j = 1:num_reps
+            output = posterior_sample(hmm, observations)
+            lml_estimate = no_rejuvenation_conditional_smc(scheme, output)
+            upper_bound_raw_data[i, j] = lml_estimate 
+        end
+    end
+    lower_bound_means = mean(lower_bound_raw_data, 2)
+    lower_bound_stds = std(lower_bound_raw_data, 2)
+    upper_bound_means = mean(upper_bound_raw_data, 2)
+    upper_bound_stds = std(upper_bound_raw_data, 2)
+
+    # true marginal likelihood
+    expected = log_marginal_likelihood(hmm, observations)
+
+    # they should be upper and lower bounds in all cases
+    for i=1:length(all_num_particles)
+        @test lower_bound_means[i] <= expected
+        @test upper_bound_means[i] >= expected
+    end
+
+    # the estimates should get tighter and less noisy with more particles
+    for i=1:length(all_num_particles)-1
+        @test lower_bound_means[i] <= lower_bound_means[i+1]
+        @test upper_bound_means[i] >= upper_bound_means[i+1]
+        @test lower_bound_stds[i] >= lower_bound_stds[i+1]
+        @test upper_bound_stds[i] >= upper_bound_stds[i+1]
+    end
+
+    # the final estimates should both be tight
+    @test isapprox(lower_bound_means[end], expected, atol=0.01, rtol=0)
+    @test isapprox(upper_bound_means[end], expected, atol=0.01, rtol=0)
+end
