@@ -1,6 +1,3 @@
-using Distributions
-include("mathutils.jl")
-
 immutable HiddenMarkovModel
     initial_state_prior::Array{Float64,1}
     transition_model::Array{Float64,2}
@@ -56,13 +53,13 @@ function forward_pass(hmm::HiddenMarkovModel, observations::Array{Int, 1})
         obs = observations[t-1]
         message = fprobs[t-1,:] .* hmm.observation_model[:,obs]
         # rows are x_{t-1}, cols are x_t
-        product = message' .* hmm.transition_model
+        product = message .* hmm.transition_model
         fprobs[t,:] = vec(sum(product, 1)) # sum over rows
     end
     return fprobs
 end
 
-function forward_pass_log_space(hmm::HiddenMarkovModel, observations::Array{Int, 1})
+function log_forward_pass(hmm::HiddenMarkovModel, observations::Array{Int, 1})
     # compute the log forward probabilities
     # log p(x_t, y_{1:t-1}) for t=1,...,T
     # NOTE: we are assuming an observation for each time point
@@ -74,17 +71,28 @@ function forward_pass_log_space(hmm::HiddenMarkovModel, observations::Array{Int,
         obs = observations[t-1]
         lmessage = lfprobs[t-1,:] .+ log(hmm.observation_model[:,obs])
         # rows are x_{t-1}, cols are x_t; sum over rows
-        lproduct = lmessage' .+ log(hmm.transition_model)
+        lproduct = lmessage .+ log(hmm.transition_model)
         lfprobs[t,:] = logsumexp(lproduct, 1)
     end
     return lfprobs
 end
 
-function marginal_likelihood(hmm::HiddenMarkovModel, observations::Array{Int, 1})
-    # TODO
+function marginal_likelihood(hmm::HiddenMarkovModel, 
+                             observations::Array{Int, 1})
+    # use the forward probability p(x_T, y_{1:T-1})
+    fprobs = forward_pass(hmm, observations)
+    # p(y_{1:T}) = sum_{x_T} p(x_T, y_{1:T-1}) p(y_T | x_T)
+    sum(fprobs[end,:] .* hmm.observation_model[:,observations[end]])
 end
 
-function posterior_sample(hmm::HiddenMarkovModel, observations::Array{Int, 1})
+function log_marginal_likelihood(hmm::HiddenMarkovModel, 
+                                 observations::Array{Int, 1})
+    lfprobs = log_forward_pass(hmm, observations)
+    logsumexp(lfprobs[end,:] .+ log(hmm.observation_model[:,observations[end]]))
+end
+
+function posterior_sample(hmm::HiddenMarkovModel, 
+                          observationsobservations::Array{Int, 1})
     # TODO [[ combine with marginal likelihood ? ] -- they probably hvae common comp.
 end
 
