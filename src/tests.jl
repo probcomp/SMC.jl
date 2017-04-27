@@ -204,6 +204,3 @@ end
     @test isapprox(ml_estimate, expected, atol=0.0001, rtol=0)
 
 end
-
-
-

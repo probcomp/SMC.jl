@@ -169,6 +169,7 @@ function weight(init::HMMConditionalInitializer, cur::Int)
     sum(dist)
 end
 
+
 immutable HMMConditionalIncrementer
     hmm::HiddenMarkovModel
     observation::Int
