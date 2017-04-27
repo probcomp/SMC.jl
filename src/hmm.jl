@@ -108,10 +108,11 @@ function posterior_sample(hmm::HiddenMarkovModel,
     particle 
 end
 
+# -- Helper functions for SMC in HMM using prior proposals
 
 immutable HMMPriorInitializer
     hmm::HiddenMarkovModel
-    observation::Int
+    observation::Int # should be the first observation
 end
 
 function sample(init::HMMPriorInitializer)
@@ -119,8 +120,8 @@ function sample(init::HMMPriorInitializer)
 end
 
 function weight(init::HMMPriorInitializer, cur::Int)
-    # the likelihood of the observation given state cur
-    pdf(Categorical(init.hmm.observation_model[cur,:]), init.observation)
+    # the likelihood of the observation given state cur was output from sample
+    init.hmm.observation_model[cur, init.observation]
 end
 
 immutable HMMPriorIncrementer
@@ -133,12 +134,7 @@ function sample(incr::HMMPriorIncrementer, prev::Int)
 end
 
 function weight(incr::HMMPriorIncrementer, prev::Int, cur::Int)
-    pdf(Categorical(incr.hmm.observation_model[cur,:]), incr.observation)
-end
-
-immutable HMMConditionalInitializer
-    hmm::HiddenMarkovModel
-    observation::Int
+    incr.hmm.observation_model[cur, incr.observation]
 end
 
 function HMMPriorSMCScheme(hmm::HiddenMarkovModel, observations::Array{Int,1}, num_particles::Int)
@@ -148,6 +144,13 @@ function HMMPriorSMCScheme(hmm::HiddenMarkovModel, observations::Array{Int,1}, n
         incrementers[i-1] = HMMPriorIncrementer(hmm, observations[i])
     end
     StateSpaceSMCScheme(initializer, incrementers, num_particles)
+end
+
+# -- Helper functions for SMC in HMM using conditonal (optimal) proposals
+
+immutable HMMConditionalInitializer
+    hmm::HiddenMarkovModel
+    observation::Int
 end
 
 function sample(init::HMMConditionalInitializer)
@@ -165,6 +168,7 @@ function weight(init::HMMConditionalInitializer, cur::Int)
     sum(dist) # TODO check me 
 end
 
+
 immutable HMMConditionalIncrementer
     hmm::HiddenMarkovModel
     observation::Int
@@ -177,3 +181,5 @@ end
 function weight(incr::HMMConditionalIncrementer, prev::Int, cur::Int)
     # TODO
 end
+
+# TODO.

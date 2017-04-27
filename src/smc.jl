@@ -44,7 +44,7 @@ immutable StateSpaceSMCScheme
 end
 
 function state_space_smc(scheme::StateSpaceSMCScheme)
-    num_steps = length(scheme.incrementers)
+    num_steps = length(scheme.incrementers) + 1
     num_particles = scheme.num_particles
     particles = Array{Any,1}(num_particles)
     new_particles = Array{Any,1}(num_particles) # temporary storage
