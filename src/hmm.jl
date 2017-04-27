@@ -119,9 +119,9 @@ function sample(init::HMMPriorInitializer)
     rand(Categorical(init.hmm.initial_state_prior))
 end
 
-function weight(init::HMMPriorInitializer, cur::Int)
+function log_weight(init::HMMPriorInitializer, cur::Int)
     # the likelihood of the observation given state cur was output from sample
-    init.hmm.observation_model[cur, init.observation]
+    log(init.hmm.observation_model[cur, init.observation])
 end
 
 immutable HMMPriorIncrementer
@@ -133,8 +133,8 @@ function sample(incr::HMMPriorIncrementer, prev::Int)
     rand(Categorical(incr.hmm.transition_model[prev,:]))
 end
 
-function weight(incr::HMMPriorIncrementer, prev::Int, cur::Int)
-    incr.hmm.observation_model[cur, incr.observation]
+function log_weight(incr::HMMPriorIncrementer, prev::Int, cur::Int)
+    log(incr.hmm.observation_model[cur, incr.observation])
 end
 
 function HMMPriorSMCScheme(hmm::HiddenMarkovModel, observations::Array{Int,1}, num_particles::Int)
@@ -154,19 +154,19 @@ immutable HMMConditionalInitializer
 end
 
 function sample(init::HMMConditionalInitializer)
-    prior = init.hmm.initial_state_prior
-    likelihood = init.hmm.observation_model[:,init.observation]
-    dist = prior .* likelihood
+    lprior = log(init.hmm.initial_state_prior)
+    llikelihood = log(init.hmm.observation_model[:,init.observation])
+    ldist = lprior .+ llikelihood
     # p(x_1 | y_1)
-    rand(Categorical(dist / sum(dist)))
+    rand(Categorical(exp(ldist - logsumexp(ldist))))
 end
 
-function weight(init::HMMConditionalInitializer, cur::Int)
-    prior = init.hmm.initial_state_prior
-    likelihood = init.hmm.observation_model[:,init.observation]
-    dist = prior .* likelihood
+function log_weight(init::HMMConditionalInitializer, cur::Int)
+    lprior = log(init.hmm.initial_state_prior)
+    llikelihood = log(init.hmm.observation_model[:,init.observation])
+    dist = lprior .+ llikelihood
     # p(y_1) = sum_{x_1} p(x_1) p(y_1 | x_1)
-    sum(dist)
+    logsumexp(dist)
 end
 
 
@@ -176,19 +176,19 @@ immutable HMMConditionalIncrementer
 end
 
 function sample(incr::HMMConditionalIncrementer, prev::Int)
-    prior = incr.hmm.transition_model[prev,:]
-    likelihood = incr.hmm.observation_model[:,incr.observation]
-    dist = prior .* likelihood
+    lprior = log(incr.hmm.transition_model[prev,:])
+    llikelihood = log(incr.hmm.observation_model[:,incr.observation])
+    ldist = lprior .+ llikelihood
     # p(x_t | x_{t-1}, y_t)
-    rand(Categorical(dist / sum(dist)))
+    rand(Categorical(exp(ldist - logsumexp(ldist))))
 end
 
-function weight(incr::HMMConditionalIncrementer, prev::Int, cur::Int)
-    prior = incr.hmm.transition_model[prev,:]
-    likelihood = incr.hmm.observation_model[:,incr.observation]
-    dist = prior .* likelihood
+function log_weight(incr::HMMConditionalIncrementer, prev::Int, cur::Int)
+    lprior = log(incr.hmm.transition_model[prev,:])
+    llikelihood = log(incr.hmm.observation_model[:,incr.observation])
+    ldist = lprior .+ llikelihood
     # p(y_t | x_{t-1}) = sum_{x_t} p(x_t | x_{t-1}) p(y_t | x_t)
-    sum(dist)
+    logsumexp(ldist)
 end
 
 function HMMConditionalSMCScheme(hmm::HiddenMarkovModel, observations::Array{Int,1}, num_particles::Int)

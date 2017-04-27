@@ -185,22 +185,18 @@ end
 
     # SMC with prior proposal
     srand(1)
-    num_particles = 1000
+    num_particles = 10000
     scheme = HMMPriorSMCScheme(hmm, observations, num_particles)
-    output, ml_estimate = state_space_smc(scheme)
-    expected = marginal_likelihood(hmm, observations)
-    println(ml_estimate)
-    println(expected)
-    @test isapprox(ml_estimate, expected, atol=0.001, rtol=0)
+    output, log_ml_estimate = state_space_smc(scheme)
+    expected = log_marginal_likelihood(hmm, observations)
+    @test isapprox(log_ml_estimate, expected, atol=0.1, rtol=0)
 
     # SMC with conditional proposal
     srand(1)
-    num_particles = 1000
+    num_particles = 10000
     scheme = HMMConditionalSMCScheme(hmm, observations, num_particles)
-    output, ml_estimate = state_space_smc(scheme)
-    expected = marginal_likelihood(hmm, observations)
-    println(ml_estimate)
-    println(expected)
-    @test isapprox(ml_estimate, expected, atol=0.0001, rtol=0)
+    output, log_ml_estimate = state_space_smc(scheme)
+    expected = log_marginal_likelihood(hmm, observations)
+    @test isapprox(log_ml_estimate, expected, atol=0.02, rtol=0)
 
 end

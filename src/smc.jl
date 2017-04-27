@@ -1,9 +1,9 @@
 using Distributions
 
-# TODO shift to using log-weights everywhere
-
-function resample(weights::Array{Float64,1}, n::Int)
-    rand(Categorical(weights / sum(weights)), n)
+function resample(log_weights::Array{Float64,1}, n::Int)
+    # is there more numerically accurate way?    
+    dist = exp(log_weights - logsumexp(log_weights))
+    rand(Categorical(dist), n)
 end
 
 immutable GeneralSMCScheme
@@ -15,26 +15,37 @@ end
 function general_smc(scheme::GeneralSMCScheme)
     num_steps = length(scheme.incrementers)
     num_particles = scheme.num_particles
+
+    # TODO we don't need to store all of these particles and log_weights
+    # (make it like the state space one, and possibly combine them)
     particles = Array{Any,2}(num_steps, num_particles)
-    weights = Array{Float64,2}(num_steps, num_particles) # actually in log space
-    # initialize first step particles and weights
+    log_weights = Array{Float64,2}(num_steps, num_particles)
+
+    log_ml_estimate::Float64 = 0.0
+
+    # initialize first step particles and log_weights
     for i=1:num_particles
         x = sample(scheme.initializer)
-        weights[1,i] = weight(scheme.initializer, x)
+        log_weights[1,i] = log_weight(scheme.initializer, x)
         particles[1,i] = x
     end
+    log_ml_estimate += (logsumexp(log_weights[1,:]) - log(num_particles))
+
     # iterate through steps
     for t=2:num_steps
-        parents = resample(weights[t-1,:], num_particles)
+        parents = resample(log_weights[t-1,:], num_particles)
         for i=1:num_particles
             prev_x = particles[t-1,parents[i]]
             new_x = sample(scheme.incrementers[t-1], prev_x)
-            weights[t,i] = weight(scheme.incrementers[t-1], prev_x, new_x)
+            log_weights[t,i] = log_weight(scheme.incrementers[t-1], prev_x, new_x)
             particles[t,i] = new_x
         end
+        log_ml_estimate += (logsumexp(log_weights[t,:]) - log(num_particles))
     end
-    # final output particle
-    output_index = resample(weights[num_steps], 1)
+
+    output_index = resample(log_weights[end,:], 1)
+    output = particles[end,output_index]
+    (output, log_ml_estimate)
 end
 
 immutable StateSpaceSMCScheme
@@ -48,36 +59,35 @@ function state_space_smc(scheme::StateSpaceSMCScheme)
     num_particles = scheme.num_particles
     particles = Array{Any,1}(num_particles)
     new_particles = Array{Any,1}(num_particles) # temporary storage
-    weights = Array{Float64,1}(num_particles)
+    log_weights = Array{Float64,1}(num_particles)
 
-    ml_estimate::Float64 = 1.0
+    log_ml_estimate::Float64 = 0.0
 
-    # initialize first step particles and weights
+    # initialize first step particles and log_weights
     for i=1:num_particles
         x = sample(scheme.initializer)
-        weights[i] = weight(scheme.initializer, x)
+        log_weights[i] = log_weight(scheme.initializer, x)
         particles[i] = x
     end
-    ml_estimate *= mean(weights)
+    log_ml_estimate += (logsumexp(log_weights) - log(num_particles))
 
     # iterate through steps
     for t=2:num_steps
-        parents = resample(weights, num_particles)
+        parents = resample(log_weights, num_particles)
         for i=1:num_particles
             prev_x = particles[parents[i]]
             new_x = sample(scheme.incrementers[t-1], prev_x)
             # overwrite the old weight with the new weight
-            weights[i] = weight(scheme.incrementers[t-1], prev_x, new_x)
+            log_weights[i] = log_weight(scheme.incrementers[t-1], prev_x, new_x)
             new_particles[i] = new_x
         end
-        ml_estimate *= mean(weights)
+        log_ml_estimate += (logsumexp(log_weights) - log(num_particles))
         tmp = particles
         particles = new_particles
         new_particles = tmp
     end
 
-    # final output particle
-    output_index = resample(weights, 1)
+    output_index = resample(log_weights, 1)
     output = particles[output_index]
-    (output, ml_estimate)
+    (output, log_ml_estimate)
 end
