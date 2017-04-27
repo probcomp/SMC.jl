@@ -89,4 +89,86 @@ end
         @test isapprox(actual, exp(log_marginal_likelihood(hmm, observations)))
     end
 
+    @testset "posterior sampling" begin
+        particle = posterior_sample(hmm, observations)
+        
+        # smoke test: check the type and dimensions and other basic properties
+        @test typeof(particle) == Array{Int,1}
+        @test length(particle) == 3
+        @test all(particle .>= 1)
+        @test all(particle .<= 2)
+
+        # TODO: test the distribution? Maybe next year :)
+
+    end
+
+    @testset "sanity checks" begin
+
+        # sanity check on extreme observation
+        srand(1)
+        hmm = HiddenMarkovModel([0.5, 0.5],                     # prior
+                                [0.5 0.5; 0.5 0.5],             # transition
+                                [0.9999 0.0001; 0.0001 0.9999]) # observation
+        obs = [1]
+        num_samples = 100
+        num_1 = 0
+        for i = 1:num_samples
+            particle = posterior_sample(hmm, obs)
+            num_1 += (particle[1] == 1)
+        end
+        @test num_1 >= 95
+
+        # sanity check on extreme prior and transition
+        srand(1)
+        hmm = HiddenMarkovModel([0.0001, 0.9999],                     # prior
+                                [0.9999 0.0001; 0.0001 0.9999],             # transition
+                                [0.5 0.5; 0.5 0.5]) # observation
+        obs = [1, 2]
+        num_samples = 100
+        num_1 = 0
+        for i = 1:num_samples
+            particle = posterior_sample(hmm, obs)
+            num_1 += (particle[2] == 1)
+        end
+        @test num_1 <= 5
+
+        # a symmetric extreme distribution
+        hmm = HiddenMarkovModel([0.5, 0.5],         # prior
+                                [0.9999 0.0001; 0.0001 0.9999],  # transition
+                                [0.9999 0.0001; 0.0001 0.9999]) # observation
+
+        # switch happens at step 9 -> 10
+        obs_a = [1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2]
+        obs_b = [2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1]
+
+        # test for symmetry
+        @test isapprox(log_marginal_likelihood(hmm, obs_a),
+                       log_marginal_likelihood(hmm, obs_b))
+
+        # check samples
+        srand(1)
+        num_samples = 100
+
+        num_start_1 = 0
+        num_end_2 = 0
+        for i = 1:num_samples
+            particle = posterior_sample(hmm, obs_a)
+            num_start_1 += all(particle[1:9] .== 1)
+            num_end_2 += all(particle[10:end] .== 2)
+        end
+        @test num_start_1 >= 95
+        @test num_end_2 >= 95
+
+        srand(1)
+        num_start_2 = 0
+        num_end_1 = 0
+        for i = 1:num_samples
+            particle = posterior_sample(hmm, obs_b)
+            num_start_2 += all(particle[1:9] .== 2)
+            num_end_1 += all(particle[10:end] .== 1)
+        end
+        @test num_start_2 >= 95
+        @test num_end_1 >= 95
+    end
+
 end

@@ -92,8 +92,20 @@ function log_marginal_likelihood(hmm::HiddenMarkovModel,
 end
 
 function posterior_sample(hmm::HiddenMarkovModel, 
-                          observationsobservations::Array{Int, 1})
-    # TODO [[ combine with marginal likelihood ? ] -- they probably hvae common comp.
+                          observations::Array{Int, 1})
+    num_steps = length(observations)
+    lfprobs = log_forward_pass(hmm, observations)
+    ldist = lfprobs[end,:] .+ log(hmm.observation_model[:,observations[end]])
+    particle = Array{Int,1}(num_steps)
+    particle[end] = rand(Categorical(exp(ldist - logsumexp(ldist)))) # TODO there may be a more numerically precise version
+    for t = num_steps-1:-1:1
+        ldist = lfprobs[t,:]
+        ldist = ldist .+ log(hmm.observation_model[:,observations[t]])
+        ldist = ldist .+ log(hmm.transition_model[:,particle[t+1]])
+        dist = exp(ldist - logsumexp(ldist))
+        particle[t] = rand(Categorical(dist))
+    end
+    particle 
 end
 
 
