@@ -108,10 +108,11 @@ function posterior_sample(hmm::HiddenMarkovModel,
     particle 
 end
 
+# -- Helper functions for SMC in HMM using prior proposals
 
 immutable HMMPriorInitializer
     hmm::HiddenMarkovModel
-    observation::Int
+    observation::Int # should be the first observation
 end
 
 function sample(init::HMMPriorInitializer)
@@ -119,8 +120,8 @@ function sample(init::HMMPriorInitializer)
 end
 
 function weight(init::HMMPriorInitializer, cur::Int)
-    # the likelihood of the observation given state cur
-    pdf(Categorical(init.hmm.observation_model[cur,:]), init.observation)
+    # the likelihood of the observation given state cur was output from sample
+    init.hmm.observation_model[cur, init.observation]
 end
 
 immutable HMMPriorIncrementer
@@ -133,12 +134,7 @@ function sample(incr::HMMPriorIncrementer, prev::Int)
 end
 
 function weight(incr::HMMPriorIncrementer, prev::Int, cur::Int)
-    pdf(Categorical(incr.hmm.observation_model[cur,:]), incr.observation)
-end
-
-immutable HMMConditionalInitializer
-    hmm::HiddenMarkovModel
-    observation::Int
+    incr.hmm.observation_model[cur, incr.observation]
 end
 
 function HMMPriorSMCScheme(hmm::HiddenMarkovModel, observations::Array{Int,1}, num_particles::Int)
@@ -150,11 +146,18 @@ function HMMPriorSMCScheme(hmm::HiddenMarkovModel, observations::Array{Int,1}, n
     StateSpaceSMCScheme(initializer, incrementers, num_particles)
 end
 
+# -- Helper functions for SMC in HMM using conditonal (optimal) proposals
+
+immutable HMMConditionalInitializer
+    hmm::HiddenMarkovModel
+    observation::Int
+end
+
 function sample(init::HMMConditionalInitializer)
     prior = init.hmm.initial_state_prior
     likelihood = init.hmm.observation_model[:,init.observation]
     dist = prior .* likelihood
-    dist = init.hmm.initial_state_prior .* init.hmm.observation_modelp\
+    # p(x_1 | y_1)
     rand(Categorical(dist / sum(dist)))
 end
 
@@ -162,7 +165,8 @@ function weight(init::HMMConditionalInitializer, cur::Int)
     prior = init.hmm.initial_state_prior
     likelihood = init.hmm.observation_model[:,init.observation]
     dist = prior .* likelihood
-    sum(dist) # TODO check me 
+    # p(y_1) = sum_{x_1} p(x_1) p(y_1 | x_1)
+    sum(dist)
 end
 
 immutable HMMConditionalIncrementer
@@ -171,9 +175,27 @@ immutable HMMConditionalIncrementer
 end
 
 function sample(incr::HMMConditionalIncrementer, prev::Int)
-    # TODO
+    prior = incr.hmm.transition_model[prev,:]
+    likelihood = incr.hmm.observation_model[:,incr.observation]
+    dist = prior .* likelihood
+    # p(x_t | x_{t-1}, y_t)
+    rand(Categorical(dist / sum(dist)))
 end
 
 function weight(incr::HMMConditionalIncrementer, prev::Int, cur::Int)
-    # TODO
+    prior = incr.hmm.transition_model[prev,:]
+    likelihood = incr.hmm.observation_model[:,incr.observation]
+    dist = prior .* likelihood
+    # p(y_t | x_{t-1}) = sum_{x_t} p(x_t | x_{t-1}) p(y_t | x_t)
+    sum(dist)
 end
+
+function HMMConditionalSMCScheme(hmm::HiddenMarkovModel, observations::Array{Int,1}, num_particles::Int)
+    initializer = HMMConditionalInitializer(hmm, observations[1])
+    incrementers = Array{Any,1}(length(observations) - 1)
+    for i = 2:length(observations)
+        incrementers[i-1] = HMMConditionalIncrementer(hmm, observations[i])
+    end
+    StateSpaceSMCScheme(initializer, incrementers, num_particles)
+end
+
