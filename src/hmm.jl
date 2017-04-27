@@ -129,11 +129,13 @@ immutable HMMPriorIncrementer
     observation::Int
 end
 
-function sample(incr::HMMPriorIncrementer, prev::Int)
-    rand(Categorical(incr.hmm.transition_model[prev,:]))
+function sample(incr::HMMPriorIncrementer, prev::Array{Int,1})
+    # NOTE: the interface allows us to use the whole history of the particle;
+    # we only use the most recent state prev[end]
+    rand(Categorical(incr.hmm.transition_model[prev[end],:]))
 end
 
-function log_weight(incr::HMMPriorIncrementer, prev::Int, cur::Int)
+function log_weight(incr::HMMPriorIncrementer, prev::Array{Int,1}, cur::Int)
     log(incr.hmm.observation_model[cur, incr.observation])
 end
 
@@ -175,16 +177,18 @@ immutable HMMConditionalIncrementer
     observation::Int
 end
 
-function sample(incr::HMMConditionalIncrementer, prev::Int)
-    lprior = log(incr.hmm.transition_model[prev,:])
+function sample(incr::HMMConditionalIncrementer, prev::Array{Int,1})
+    # NOTE: the interface allows us to use the whole history of the particle;
+    # we only use the most recent state prev[end]
+    lprior = log(incr.hmm.transition_model[prev[end],:])
     llikelihood = log(incr.hmm.observation_model[:,incr.observation])
     ldist = lprior .+ llikelihood
     # p(x_t | x_{t-1}, y_t)
     rand(Categorical(exp(ldist - logsumexp(ldist))))
 end
 
-function log_weight(incr::HMMConditionalIncrementer, prev::Int, cur::Int)
-    lprior = log(incr.hmm.transition_model[prev,:])
+function log_weight(incr::HMMConditionalIncrementer, prev::Array{Int,1}, cur::Int)
+    lprior = log(incr.hmm.transition_model[prev[end],:])
     llikelihood = log(incr.hmm.observation_model[:,incr.observation])
     ldist = lprior .+ llikelihood
     # p(y_t | x_{t-1}) = sum_{x_t} p(x_t | x_{t-1}) p(y_t | x_t)
@@ -199,4 +203,3 @@ function HMMConditionalSMCScheme(hmm::HiddenMarkovModel, observations::Array{Int
     end
     StateSpaceSMCScheme(initializer, incrementers, num_particles)
 end
-

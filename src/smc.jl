@@ -36,9 +36,9 @@ function general_smc(scheme::GeneralSMCScheme)
         parents = resample(log_weights[t-1,:], num_particles)
         for i=1:num_particles
             prev_x = particles[t-1,parents[i]]
-            new_x = sample(scheme.incrementers[t-1], prev_x)
-            log_weights[t,i] = log_weight(scheme.incrementers[t-1], prev_x, new_x)
-            particles[t,i] = new_x
+            new_component = sample(scheme.incrementers[t-1], prev_x)
+            log_weights[t,i] = log_weight(scheme.incrementers[t-1], prev_x, new_component)
+            particles[t,i] = new_component
         end
         log_ml_estimate += (logsumexp(log_weights[t,:]) - log(num_particles))
     end
@@ -54,11 +54,12 @@ immutable StateSpaceSMCScheme
     num_particles::Int
 end
 
-function state_space_smc(scheme::StateSpaceSMCScheme)
+function no_rejuvenation_smc(scheme::StateSpaceSMCScheme)
+    # a particle is an array of components of arbitrary type
     num_steps = length(scheme.incrementers) + 1
     num_particles = scheme.num_particles
-    particles = Array{Any,1}(num_particles)
-    new_particles = Array{Any,1}(num_particles) # temporary storage
+    particles = Array{Array,1}(num_particles)
+    new_particles = Array{Array,1}(num_particles) # temporary storage
     log_weights = Array{Float64,1}(num_particles)
 
     log_ml_estimate::Float64 = 0.0
@@ -67,7 +68,7 @@ function state_space_smc(scheme::StateSpaceSMCScheme)
     for i=1:num_particles
         x = sample(scheme.initializer)
         log_weights[i] = log_weight(scheme.initializer, x)
-        particles[i] = x
+        particles[i] = Array([x])
     end
     log_ml_estimate += (logsumexp(log_weights) - log(num_particles))
 
@@ -75,19 +76,20 @@ function state_space_smc(scheme::StateSpaceSMCScheme)
     for t=2:num_steps
         parents = resample(log_weights, num_particles)
         for i=1:num_particles
-            prev_x = particles[parents[i]]
-            new_x = sample(scheme.incrementers[t-1], prev_x)
+            particle = particles[parents[i]]
+            new_component = sample(scheme.incrementers[t-1], particle) # samples the next component
             # overwrite the old weight with the new weight
-            log_weights[i] = log_weight(scheme.incrementers[t-1], prev_x, new_x)
-            new_particles[i] = new_x
+            log_weights[i] = log_weight(scheme.incrementers[t-1], particle, new_component)
+            new_particles[i] = vcat(particle, [new_component]) # augment particle with new component
         end
         log_ml_estimate += (logsumexp(log_weights) - log(num_particles))
         tmp = particles
         particles = new_particles
         new_particles = tmp
     end
-
-    output_index = resample(log_weights, 1)
+    output_index = resample(log_weights, 1)[1]
     output = particles[output_index]
+    @assert length(output) == num_steps
     (output, log_ml_estimate)
 end
+

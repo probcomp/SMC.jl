@@ -187,7 +187,8 @@ end
     srand(1)
     num_particles = 10000
     scheme = HMMPriorSMCScheme(hmm, observations, num_particles)
-    output, log_ml_estimate = state_space_smc(scheme)
+    output, log_ml_estimate = no_rejuvenation_smc(scheme)
+    @test length(output) == 3
     expected = log_marginal_likelihood(hmm, observations)
     @test isapprox(log_ml_estimate, expected, atol=0.1, rtol=0)
 
@@ -195,7 +196,8 @@ end
     srand(1)
     num_particles = 10000
     scheme = HMMConditionalSMCScheme(hmm, observations, num_particles)
-    output, log_ml_estimate = state_space_smc(scheme)
+    output, log_ml_estimate = no_rejuvenation_smc(scheme)
+    @test length(output) == 3
     expected = log_marginal_likelihood(hmm, observations)
     @test isapprox(log_ml_estimate, expected, atol=0.02, rtol=0)
 
