@@ -7,13 +7,16 @@ Also includes some infrastructure and tests for divergence measurement
 
 Tested with Julia Version 0.5.1 (2017-03-05 13:25 UTC)
 
-# Dependencis
+# Dependencies
 
-Julia packages:
-    Distributions
+```
+julia> Pkg.add("Distributions")
+```
 
 # To run tests:
 
-1. Open julia interpreter
+```
+julia
+julia> include("smcjulia.jl")
 
-2. julia> include("smcjulia.jl")
+```
