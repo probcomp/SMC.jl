@@ -13,14 +13,15 @@ immutable StateSpaceSMCScheme
 end
 
 function no_rejuvenation_smc(scheme::StateSpaceSMCScheme)
-    # a particle is an array of components of arbitrary type
+
     num_steps = length(scheme.incrementers) + 1
     num_particles = scheme.num_particles
-    particles = Array{Array,1}(num_particles)
-    new_particles = Array{Array,1}(num_particles) # temporary storage
     log_weights = Array{Float64,1}(num_particles)
-
     log_ml_estimate::Float64 = 0.0
+
+    # a particle is an array of components of arbitrary type
+    particles = Array{Array,1}(num_particles)
+    new_particles = Array{Array,1}(num_particles) 
 
     # initialize first step particles and log_weights
     for i=1:num_particles
@@ -35,10 +36,10 @@ function no_rejuvenation_smc(scheme::StateSpaceSMCScheme)
         parents = resample(log_weights, num_particles)
         for i=1:num_particles
             particle = particles[parents[i]]
-            new_component = sample(scheme.incrementers[t-1], particle) # samples the next component
-            # overwrite the old weight with the new weight
-            log_weights[i] = log_weight(scheme.incrementers[t-1], particle, new_component)
-            new_particles[i] = vcat(particle, [new_component]) # augment particle with new component
+            new_component = sample(scheme.incrementers[t-1], particle)
+            log_weights[i] = log_weight(scheme.incrementers[t-1], 
+                                        particle, new_component)
+            new_particles[i] = vcat(particle, [new_component]) 
         end
         log_ml_estimate += (logsumexp(log_weights) - log(num_particles))
         tmp = particles
@@ -51,20 +52,21 @@ function no_rejuvenation_smc(scheme::StateSpaceSMCScheme)
     (output, log_ml_estimate)
 end
 
-function no_rejuvenation_conditional_smc(scheme::StateSpaceSMCScheme, output_particle::Array)
+function no_rejuvenation_conditional_smc(scheme::StateSpaceSMCScheme, 
+                                         output_particle::Array)
     num_steps = length(scheme.incrementers) + 1
     num_particles = scheme.num_particles
-    # the particles are arrays, which are added to over time
-    particles = Array{Array,1}(num_particles)
-    new_particles = Array{Array,1}(num_particles) # temporary storage
     log_weights = Array{Float64,1}(num_particles)
-
     log_ml_estimate::Float64 = 0.0
 
-    # selcet indices of ancestors of the output particle
+    # a particle is an array of components of arbitrary type
+    particles = Array{Array,1}(num_particles)
+    new_particles = Array{Array,1}(num_particles)
+
+    # select indices of ancestors of the output particle
     ancestry = rand(Categorical(num_particles), num_steps)
 
-    # initialize first step particles and log_weights
+    # initialize particles and log_weights
     for i=1:num_particles
         if ancestry[1] == i
             x = output_particle[1]
@@ -87,9 +89,9 @@ function no_rejuvenation_conditional_smc(scheme::StateSpaceSMCScheme, output_par
                 particle = particles[parents[i]]
                 new_component = sample(scheme.incrementers[t-1], particle)
             end
-            # overwrite the old weight with the new weight
-            log_weights[i] = log_weight(scheme.incrementers[t-1], particle, new_component)
-            new_particles[i] = vcat(particle, [new_component]) # augment particle with new component
+            log_weights[i] = log_weight(scheme.incrementers[t-1], 
+                                        particle, new_component)
+            new_particles[i] = vcat(particle, [new_component])
         end
         log_ml_estimate += (logsumexp(log_weights) - log(num_particles))
         tmp = particles
