@@ -115,13 +115,15 @@ immutable HMMPriorInitializer
     observation::Int # should be the first observation
 end
 
-function sample(init::HMMPriorInitializer)
-    rand(Categorical(init.hmm.initial_state_prior))
+function forward(init::HMMPriorInitializer)
+    particle = Array{Int,1}([rand(Categorical(init.hmm.initial_state_prior))])
+    log_weight = log(init.hmm.observation_model[particle[1], init.observation])
+    (particle, log_weight)
 end
 
-function log_weight(init::HMMPriorInitializer, cur::Int)
-    # the likelihood of the observation given state cur was output from sample
-    log(init.hmm.observation_model[cur, init.observation])
+function backward(init::HMMPriorInitializer, particle::Array{Int,1})
+    @assert length(particle) == 1
+    log(init.hmm.observation_model[particle[1], init.observation])
 end
 
 immutable HMMPriorIncrementer
@@ -129,23 +131,30 @@ immutable HMMPriorIncrementer
     observation::Int
 end
 
-function sample(incr::HMMPriorIncrementer, prev::Array{Int,1})
-    # NOTE: the interface allows us to use the whole history of the particle;
-    # we only use the most recent state prev[end]
-    rand(Categorical(incr.hmm.transition_model[prev[end],:]))
+function forward(incr::HMMPriorIncrementer, particle::Array{Int,1})
+    prev = particle[end]
+    cur = rand(Categorical(incr.hmm.transition_model[prev,:]))
+    log_weight = log(incr.hmm.observation_model[cur, incr.observation])
+    new_particle = vcat(particle, [cur])
+    (new_particle, log_weight)
 end
 
-function log_weight(incr::HMMPriorIncrementer, prev::Array{Int,1}, cur::Int)
-    log(incr.hmm.observation_model[cur, incr.observation])
+function backward(incr::HMMPriorIncrementer, new_particle::Array{Int,1})
+    cur = new_particle[end]
+    log_weight = log(incr.hmm.observation_model[cur, incr.observation])
+    particle = new_particle[1:end-1]
+    (particle, log_weight)
 end
 
-function HMMPriorSMCScheme(hmm::HiddenMarkovModel, observations::Array{Int,1}, num_particles::Int)
+function HMMPriorSMCScheme(hmm::HiddenMarkovModel, 
+                           observations::Array{Int,1}, 
+                           num_particles::Int)
     initializer = HMMPriorInitializer(hmm, observations[1])
     incrementers = Array{Any,1}(length(observations) - 1)
     for i = 2:length(observations)
         incrementers[i-1] = HMMPriorIncrementer(hmm, observations[i])
     end
-    NoRejuvenationSMCScheme(initializer, incrementers, num_particles)
+    SMCScheme(initializer, incrementers, num_particles)
 end
 
 # -- Helper functions for SMC in HMM using conditonal (optimal) proposals
@@ -153,53 +162,71 @@ end
 immutable HMMConditionalInitializer
     hmm::HiddenMarkovModel
     observation::Int
+    dist::Categorical
+    log_weight::Float64
+    function HMMConditionalInitializer(hmm::HiddenMarkovModel, observation::Int)
+        lprior = log(hmm.initial_state_prior)
+        llikelihood = log(hmm.observation_model[:,observation])
+        ldist = lprior .+ llikelihood
+        log_weight = logsumexp(ldist)
+        # log normalized distribution
+        ldist = ldist - log_weight
+        dist = Categorical(exp(ldist - logsumexp(ldist)))
+        new(hmm, observation, dist, log_weight)
+    end
 end
 
-function sample(init::HMMConditionalInitializer)
-    lprior = log(init.hmm.initial_state_prior)
-    llikelihood = log(init.hmm.observation_model[:,init.observation])
-    ldist = lprior .+ llikelihood
+function forward(init::HMMConditionalInitializer)
     # p(x_1 | y_1)
-    rand(Categorical(exp(ldist - logsumexp(ldist))))
+    particle = Array{Int,1}([rand(init.dist)])
+    (particle, init.log_weight)
 end
 
-function log_weight(init::HMMConditionalInitializer, cur::Int)
-    lprior = log(init.hmm.initial_state_prior)
-    llikelihood = log(init.hmm.observation_model[:,init.observation])
-    dist = lprior .+ llikelihood
+function backward(init::HMMConditionalInitializer, particle::Array{Int,1})
+    @assert length(particle) == 1
     # p(y_1) = sum_{x_1} p(x_1) p(y_1 | x_1)
-    logsumexp(dist)
+    init.log_weight
 end
 
 
 immutable HMMConditionalIncrementer
     hmm::HiddenMarkovModel
     observation::Int
+    llikelihood::Array{Float64,1}
+    function HMMConditionalIncrementer(hmm::HiddenMarkovModel, observation::Int)
+        llikelihood = log(hmm.observation_model[:,observation])
+        new(hmm, observation, llikelihood)
+    end
 end
 
-function sample(incr::HMMConditionalIncrementer, prev::Array{Int,1})
-    # NOTE: the interface allows us to use the whole history of the particle;
-    # we only use the most recent state prev[end]
-    lprior = log(incr.hmm.transition_model[prev[end],:])
-    llikelihood = log(incr.hmm.observation_model[:,incr.observation])
-    ldist = lprior .+ llikelihood
+function forward(incr::HMMConditionalIncrementer, particle::Array{Int,1})
+    cur = particle[end]
+    lprior = log(incr.hmm.transition_model[cur,:])
+    ldist = lprior .+ incr.llikelihood
     # p(x_t | x_{t-1}, y_t)
-    rand(Categorical(exp(ldist - logsumexp(ldist))))
+    log_weight = logsumexp(ldist)
+    new_component = rand(Categorical(exp(ldist - log_weight)))
+    new_particle = vcat(particle, [new_component])
+    (new_particle, log_weight)
 end
 
-function log_weight(incr::HMMConditionalIncrementer, prev::Array{Int,1}, cur::Int)
-    lprior = log(incr.hmm.transition_model[prev[end],:])
-    llikelihood = log(incr.hmm.observation_model[:,incr.observation])
-    ldist = lprior .+ llikelihood
+function backward(incr::HMMConditionalIncrementer, new_particle::Array{Int,1})
+    cur = new_particle[end]
+    lprior = log(incr.hmm.transition_model[cur,:])
+    ldist = lprior .+ incr.llikelihood
     # p(y_t | x_{t-1}) = sum_{x_t} p(x_t | x_{t-1}) p(y_t | x_t)
-    logsumexp(ldist)
+    log_weight = logsumexp(ldist)
+    particle = new_particle[1:end-1]
+    (particle, log_weight)
 end
 
-function HMMConditionalSMCScheme(hmm::HiddenMarkovModel, observations::Array{Int,1}, num_particles::Int)
+function HMMConditionalSMCScheme(hmm::HiddenMarkovModel, 
+                                 observations::Array{Int,1}, 
+                                 num_particles::Int)
     initializer = HMMConditionalInitializer(hmm, observations[1])
     incrementers = Array{Any,1}(length(observations) - 1)
     for i = 2:length(observations)
         incrementers[i-1] = HMMConditionalIncrementer(hmm, observations[i])
     end
-    NoRejuvenationSMCScheme(initializer, incrementers, num_particles)
+    SMCScheme(initializer, incrementers, num_particles)
 end
