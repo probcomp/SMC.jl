@@ -17,6 +17,6 @@ julia> Pkg.add("Distributions")
 
 ```
 julia
-julia> include("smcjulia.jl")
+julia> include("test/runtests.jl")
 
 ```

@@ -1,3 +1,5 @@
+import Distributions.Categorical
+
 immutable HiddenMarkovModel
     initial_state_prior::Array{Float64,1}
     transition_model::Array{Float64,2}

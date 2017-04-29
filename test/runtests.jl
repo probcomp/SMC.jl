@@ -1,3 +1,5 @@
+using SMCJulia
+using Base.Test
 
 @testset "logsumexp tests" begin
 
@@ -34,7 +36,7 @@ end
 
     @testset "forward probabilities" begin
         # p(x_t | y_{1:t-1}) for each t = 1,..,T
-        actual = forward_pass(hmm, observations)
+        actual = SMCJulia.forward_pass(hmm, observations)
         # number of time steps x number of states
         @test size(actual) == (3, 2) 
 
@@ -67,11 +69,11 @@ end
         @test isapprox(actual, expected)
 
         # check log space agrees
-        @test isapprox(exp(log_forward_pass(hmm, observations)), expected)
+        @test isapprox(exp(SMCJulia.log_forward_pass(hmm, observations)), expected)
     end
 
     @testset "marginal likelihoods" begin
-        actual = marginal_likelihood(hmm, observations)
+        actual = SMCJulia.marginal_likelihood(hmm, observations)
 
         expected = (
               (0.4 * 0.7 * 0.7 * 0.6 * 0.1 * 0.3) + # x = (1, 1, 1)
