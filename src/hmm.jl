@@ -145,7 +145,7 @@ function HMMPriorSMCScheme(hmm::HiddenMarkovModel, observations::Array{Int,1}, n
     for i = 2:length(observations)
         incrementers[i-1] = HMMPriorIncrementer(hmm, observations[i])
     end
-    StateSpaceSMCScheme(initializer, incrementers, num_particles)
+    NoRejuvenationSMCScheme(initializer, incrementers, num_particles)
 end
 
 # -- Helper functions for SMC in HMM using conditonal (optimal) proposals
@@ -201,5 +201,5 @@ function HMMConditionalSMCScheme(hmm::HiddenMarkovModel, observations::Array{Int
     for i = 2:length(observations)
         incrementers[i-1] = HMMConditionalIncrementer(hmm, observations[i])
     end
-    StateSpaceSMCScheme(initializer, incrementers, num_particles)
+    NoRejuvenationSMCScheme(initializer, incrementers, num_particles)
 end

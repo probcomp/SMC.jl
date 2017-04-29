@@ -187,26 +187,26 @@ end
     srand(1)
     num_particles = 10000
     scheme = HMMPriorSMCScheme(hmm, observations, num_particles)
-    output, log_ml_estimate = no_rejuvenation_smc(scheme)
+    output, log_ml_estimate = smc(scheme)
     @test length(output) == 3
     expected = log_marginal_likelihood(hmm, observations)
     @test isapprox(log_ml_estimate, expected, atol=0.1, rtol=0)
 
     # conditional SMC (take output from above as input)
-    log_ml_estimate = no_rejuvenation_conditional_smc(scheme, output)
+    log_ml_estimate = conditional_smc(scheme, output)
     @test isapprox(log_ml_estimate, expected, atol=0.1, rtol=0)
 
     # SMC with conditional proposal
     srand(1)
     num_particles = 10000
     scheme = HMMConditionalSMCScheme(hmm, observations, num_particles)
-    output, log_ml_estimate = no_rejuvenation_smc(scheme)
+    output, log_ml_estimate = smc(scheme)
     @test length(output) == 3
     expected = log_marginal_likelihood(hmm, observations)
     @test isapprox(log_ml_estimate, expected, atol=0.02, rtol=0)
 
     # conditional SMC (take output from above as input)
-    log_ml_estimate = no_rejuvenation_conditional_smc(scheme, output)
+    log_ml_estimate = conditional_smc(scheme, output)
     @test isapprox(log_ml_estimate, expected, atol=0.1, rtol=0)
 end
 
@@ -229,12 +229,12 @@ end
     for (i, num_particles) in enumerate(all_num_particles)
         scheme = HMMConditionalSMCScheme(hmm, observations, num_particles)
         for j = 1:num_reps
-            output, lml_estimate = no_rejuvenation_smc(scheme)
+            output, lml_estimate = smc(scheme)
             lower_bound_raw_data[i, j] = lml_estimate 
         end
         for j = 1:num_reps
             output = posterior_sample(hmm, observations)
-            lml_estimate = no_rejuvenation_conditional_smc(scheme, output)
+            lml_estimate = conditional_smc(scheme, output)
             upper_bound_raw_data[i, j] = lml_estimate 
         end
     end

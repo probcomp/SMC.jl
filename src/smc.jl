@@ -6,13 +6,13 @@ function resample(log_weights::Array{Float64,1}, n::Int)
     rand(Categorical(dist), n)
 end
 
-immutable StateSpaceSMCScheme
+immutable NoRejuvenationSMCScheme
     initializer
     incrementers::Array
     num_particles::Int
 end
 
-function no_rejuvenation_smc(scheme::StateSpaceSMCScheme)
+function smc(scheme::NoRejuvenationSMCScheme)
 
     num_steps = length(scheme.incrementers) + 1
     num_particles = scheme.num_particles
@@ -52,7 +52,7 @@ function no_rejuvenation_smc(scheme::StateSpaceSMCScheme)
     (output, log_ml_estimate)
 end
 
-function no_rejuvenation_conditional_smc(scheme::StateSpaceSMCScheme, 
+function conditional_smc(scheme::NoRejuvenationSMCScheme, 
                                          output_particle::Array)
     num_steps = length(scheme.incrementers) + 1
     num_particles = scheme.num_particles
