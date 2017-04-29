@@ -4,11 +4,15 @@ immutable HiddenMarkovModel
     initial_state_prior::Array{Float64,1}
     transition_model::Array{Float64,2}
     observation_model::Array{Float64,2}
+    log_initial_state_prior::Array{Float64,1}
+    log_transition_model::Array{Float64,2}
+    log_observation_model::Array{Float64,2}
     num_states::Int
     num_obs::Int
 
-    function HiddenMarkovModel(initial_state_prior, transition_model, 
-                               observation_model)
+    function HiddenMarkovModel(initial_state_prior::Array{Float64,1},
+                               transition_model::Array{Float64,2}, 
+                               observation_model::Array{Float64,2})
         if sum(initial_state_prior) != 1.
             error("initial_state_prior is not normalized: $(initial_state_prior)")
         end
@@ -26,8 +30,12 @@ immutable HiddenMarkovModel
         if !isapprox(sum(observation_model, 2), ones(num_states, 1))
             error("observation_model rows are not all normalized: got $(sum(observation_model, 2))")
         end
-        new(initial_state_prior, transition_model, 
-            observation_model, num_states, num_obs)
+        log_initial_state_prior = log(initial_state_prior)
+        log_transition_model = log(transition_model)
+        log_observation_model = log(observation_model)
+        new(initial_state_prior, transition_model, observation_model, 
+            log_initial_state_prior, log_transition_model, log_observation_model,
+            num_states, num_obs)
     end
 end
 
@@ -71,12 +79,12 @@ function hmm_log_forward_pass(hmm::HiddenMarkovModel,
     num_steps = length(observations)
     num_states = hmm.num_states
     lfprobs = Array{Float64,2}(num_steps, num_states)
-    lfprobs[1,:] = log(hmm.initial_state_prior)
+    lfprobs[1,:] = hmm.log_initial_state_prior
     for t=2:num_steps
         obs = observations[t-1]
-        lmessage = lfprobs[t-1,:] .+ log(hmm.observation_model[:,obs])
+        lmessage = lfprobs[t-1,:] .+ hmm.log_observation_model[:,obs]
         # rows are x_{t-1}, cols are x_t; sum over rows
-        lproduct = lmessage .+ log(hmm.transition_model)
+        lproduct = lmessage .+ hmm.log_transition_model
         lfprobs[t,:] = logsumexp(lproduct, 1)
     end
     return lfprobs
@@ -93,24 +101,40 @@ end
 function hmm_log_marginal_likelihood(hmm::HiddenMarkovModel, 
                                  observations::Array{Int, 1})
     lfprobs = hmm_log_forward_pass(hmm, observations)
-    logsumexp(lfprobs[end,:] .+ log(hmm.observation_model[:,observations[end]]))
+    logsumexp(lfprobs[end,:] .+ hmm.log_observation_model[:,observations[end]])
 end
 
 function hmm_posterior_sample(hmm::HiddenMarkovModel, 
-                          observations::Array{Int, 1})
+                              observations::Array{Int, 1})
     num_steps = length(observations)
     lfprobs = hmm_log_forward_pass(hmm, observations)
-    ldist = lfprobs[end,:] .+ log(hmm.observation_model[:,observations[end]])
+    ldist = lfprobs[end,:] .+ hmm.log_observation_model[:,observations[end]]
     particle = Array{Int,1}(num_steps)
     particle[end] = rand(Categorical(exp(ldist - logsumexp(ldist))))
     for t = num_steps-1:-1:1
         ldist = lfprobs[t,:]
-        ldist = ldist .+ log(hmm.observation_model[:,observations[t]])
-        ldist = ldist .+ log(hmm.transition_model[:,particle[t+1]])
+        ldist = ldist .+ hmm.log_observation_model[:,observations[t]]
+        ldist = ldist .+ hmm.log_transition_model[:,particle[t+1]]
         dist = exp(ldist - logsumexp(ldist))
         particle[t] = rand(Categorical(dist))
     end
     particle 
+end
+
+function hmm_log_joint_probability(hmm::HiddenMarkovModel,
+                                   x::Array{Int,1},
+                                   observations::Array{Int,1})
+    if length(x) != length(observations)
+        error("length(x) != length(observations)")
+    end
+    lj = hmm.log_initial_state_prior[x[1]]
+    for t=2:length(x)
+        lj += hmm.log_transition_model[x[t-1], x[t]]
+    end
+    for t=1:length(x)
+        lj += hmm.log_observation_model[x[t], observations[t]]
+    end
+    lj
 end
 
 # -- Helper functions for SMC in HMM using prior proposals
@@ -122,13 +146,13 @@ end
 
 function forward(init::HMMPriorInitializer)
     particle = Array{Int,1}([rand(Categorical(init.hmm.initial_state_prior))])
-    log_weight = log(init.hmm.observation_model[particle[1], init.observation])
+    log_weight = init.hmm.log_observation_model[particle[1], init.observation]
     (particle, log_weight)
 end
 
 function backward(init::HMMPriorInitializer, particle::Array{Int,1})
     @assert length(particle) == 1
-    log(init.hmm.observation_model[particle[1], init.observation])
+    init.hmm.log_observation_model[particle[1], init.observation]
 end
 
 immutable HMMPriorIncrementer
@@ -139,14 +163,14 @@ end
 function forward(incr::HMMPriorIncrementer, particle::Array{Int,1})
     prev = particle[end]
     cur = rand(Categorical(incr.hmm.transition_model[prev,:]))
-    log_weight = log(incr.hmm.observation_model[cur, incr.observation])
+    log_weight = incr.hmm.log_observation_model[cur, incr.observation]
     new_particle = vcat(particle, [cur])
     (new_particle, log_weight)
 end
 
 function backward(incr::HMMPriorIncrementer, new_particle::Array{Int,1})
     cur = new_particle[end]
-    log_weight = log(incr.hmm.observation_model[cur, incr.observation])
+    log_weight = incr.hmm.log_observation_model[cur, incr.observation]
     particle = new_particle[1:end-1]
     (particle, log_weight)
 end
@@ -170,8 +194,8 @@ immutable HMMConditionalInitializer
     dist::Categorical
     log_weight::Float64
     function HMMConditionalInitializer(hmm::HiddenMarkovModel, observation::Int)
-        lprior = log(hmm.initial_state_prior)
-        llikelihood = log(hmm.observation_model[:,observation])
+        lprior = hmm.log_initial_state_prior
+        llikelihood = hmm.log_observation_model[:,observation]
         ldist = lprior .+ llikelihood
         log_weight = logsumexp(ldist)
         # log normalized distribution
@@ -199,14 +223,15 @@ immutable HMMConditionalIncrementer
     observation::Int
     llikelihood::Array{Float64,1}
     function HMMConditionalIncrementer(hmm::HiddenMarkovModel, observation::Int)
-        llikelihood = log(hmm.observation_model[:,observation])
+        llikelihood = hmm.log_observation_model[:,observation]
+
         new(hmm, observation, llikelihood)
     end
 end
 
 function forward(incr::HMMConditionalIncrementer, particle::Array{Int,1})
     cur = particle[end]
-    lprior = log(incr.hmm.transition_model[cur,:])
+    lprior = incr.hmm.log_transition_model[cur,:]
     ldist = lprior .+ incr.llikelihood
     # p(x_t | x_{t-1}, y_t)
     log_weight = logsumexp(ldist)
@@ -217,7 +242,7 @@ end
 
 function backward(incr::HMMConditionalIncrementer, new_particle::Array{Int,1})
     cur = new_particle[end]
-    lprior = log(incr.hmm.transition_model[cur,:])
+    lprior = incr.hmm.log_transition_model[cur,:]
     ldist = lprior .+ incr.llikelihood
     # p(y_t | x_{t-1}) = sum_{x_t} p(x_t | x_{t-1}) p(y_t | x_t)
     log_weight = logsumexp(ldist)
