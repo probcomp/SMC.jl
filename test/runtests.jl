@@ -1,4 +1,4 @@
-using SMCJulia
+using SMC
 using Base.Test
 
 @testset "logsumexp tests" begin
@@ -36,7 +36,7 @@ end
 
     @testset "forward probabilities" begin
         # p(x_t | y_{1:t-1}) for each t = 1,..,T
-        actual = SMCJulia.forward_pass(hmm, observations)
+        actual = SMC.hmm_forward_pass(hmm, observations)
         # number of time steps x number of states
         @test size(actual) == (3, 2) 
 
@@ -69,11 +69,11 @@ end
         @test isapprox(actual, expected)
 
         # check log space agrees
-        @test isapprox(exp(SMCJulia.log_forward_pass(hmm, observations)), expected)
+        @test isapprox(exp(SMC.hmm_log_forward_pass(hmm, observations)), expected)
     end
 
     @testset "marginal likelihoods" begin
-        actual = SMCJulia.marginal_likelihood(hmm, observations)
+        actual = SMC.hmm_marginal_likelihood(hmm, observations)
 
         expected = (
               (0.4 * 0.7 * 0.7 * 0.6 * 0.1 * 0.3) + # x = (1, 1, 1)
@@ -88,11 +88,11 @@ end
         @test isapprox(actual, expected)
 
         # check that log space agrees
-        @test isapprox(actual, exp(log_marginal_likelihood(hmm, observations)))
+        @test isapprox(actual, exp(hmm_log_marginal_likelihood(hmm, observations)))
     end
 
     @testset "posterior sampling" begin
-        particle = posterior_sample(hmm, observations)
+        particle = hmm_posterior_sample(hmm, observations)
         
         # smoke test: check the type and dimensions and other basic properties
         @test typeof(particle) == Array{Int,1}
@@ -115,7 +115,7 @@ end
         num_samples = 100
         num_1 = 0
         for i = 1:num_samples
-            particle = posterior_sample(hmm, obs)
+            particle = hmm_posterior_sample(hmm, obs)
             num_1 += (particle[1] == 1)
         end
         @test num_1 >= 95
@@ -129,7 +129,7 @@ end
         num_samples = 100
         num_1 = 0
         for i = 1:num_samples
-            particle = posterior_sample(hmm, obs)
+            particle = hmm_posterior_sample(hmm, obs)
             num_1 += (particle[2] == 1)
         end
         @test num_1 <= 5
@@ -144,8 +144,8 @@ end
         obs_b = [2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1]
 
         # test for symmetry
-        @test isapprox(log_marginal_likelihood(hmm, obs_a),
-                       log_marginal_likelihood(hmm, obs_b))
+        @test isapprox(hmm_log_marginal_likelihood(hmm, obs_a),
+                       hmm_log_marginal_likelihood(hmm, obs_b))
 
         # check samples
         srand(1)
@@ -154,7 +154,7 @@ end
         num_start_1 = 0
         num_end_2 = 0
         for i = 1:num_samples
-            particle = posterior_sample(hmm, obs_a)
+            particle = hmm_posterior_sample(hmm, obs_a)
             num_start_1 += all(particle[1:9] .== 1)
             num_end_2 += all(particle[10:end] .== 2)
         end
@@ -165,7 +165,7 @@ end
         num_start_2 = 0
         num_end_1 = 0
         for i = 1:num_samples
-            particle = posterior_sample(hmm, obs_b)
+            particle = hmm_posterior_sample(hmm, obs_b)
             num_start_2 += all(particle[1:9] .== 2)
             num_end_1 += all(particle[10:end] .== 1)
         end
@@ -191,7 +191,7 @@ end
     scheme = HMMPriorSMCScheme(hmm, observations, num_particles)
     output, log_ml_estimate = smc(scheme)
     @test length(output) == 3
-    expected = log_marginal_likelihood(hmm, observations)
+    expected = hmm_log_marginal_likelihood(hmm, observations)
     @test isapprox(log_ml_estimate, expected, atol=0.1, rtol=0)
 
     # conditional SMC (take output from above as input)
@@ -204,7 +204,7 @@ end
     scheme = HMMConditionalSMCScheme(hmm, observations, num_particles)
     output, log_ml_estimate = smc(scheme)
     @test length(output) == 3
-    expected = log_marginal_likelihood(hmm, observations)
+    expected = hmm_log_marginal_likelihood(hmm, observations)
     @test isapprox(log_ml_estimate, expected, atol=0.02, rtol=0)
 
     # conditional SMC (take output from above as input)
@@ -223,7 +223,7 @@ end
     observations = [1, 3, 2]
 
     # true marginal likelihood
-    expected = log_marginal_likelihood(hmm, observations)
+    expected = hmm_log_marginal_likelihood(hmm, observations)
 
     function test_bounds(smc_scheme_constructor, all_num_particles::Array{Int,1},
                          num_reps::Int)
@@ -236,7 +236,7 @@ end
                 lower_bound_raw_data[i, j] = lml_estimate 
             end
             for j = 1:num_reps
-                output = posterior_sample(hmm, observations)
+                output = hmm_posterior_sample(hmm, observations)
                 lml_estimate = conditional_smc(scheme, output)
                 upper_bound_raw_data[i, j] = lml_estimate 
             end
