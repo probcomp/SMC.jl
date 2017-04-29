@@ -7,7 +7,8 @@ immutable HiddenMarkovModel
     num_states::Int
     num_obs::Int
 
-    function HiddenMarkovModel(initial_state_prior, transition_model, observation_model)
+    function HiddenMarkovModel(initial_state_prior, transition_model, 
+                               observation_model)
         if sum(initial_state_prior) != 1.
             error("initial_state_prior is not normalized: $(initial_state_prior)")
         end
@@ -25,7 +26,8 @@ immutable HiddenMarkovModel
         if !isapprox(sum(observation_model, 2), ones(num_states, 1))
             error("observation_model rows are not all normalized: got $(sum(observation_model, 2))")
         end
-        new(initial_state_prior, transition_model, observation_model, num_states, num_obs)
+        new(initial_state_prior, transition_model, 
+            observation_model, num_states, num_obs)
     end
 end
 
@@ -43,7 +45,7 @@ function simulate(hmm::HiddenMarkovModel, num_steps::Int)
     (states, observations)
 end
 
-function forward_pass(hmm::HiddenMarkovModel, observations::Array{Int, 1})
+function hmm_forward_pass(hmm::HiddenMarkovModel, observations::Array{Int, 1})
     # compute the forward probabilities
     # p(x_t, y_{1:t-1}) for t=1,...,T
     # NOTE: we are assuming an observation for each time point
@@ -61,7 +63,8 @@ function forward_pass(hmm::HiddenMarkovModel, observations::Array{Int, 1})
     return fprobs
 end
 
-function log_forward_pass(hmm::HiddenMarkovModel, observations::Array{Int, 1})
+function hmm_log_forward_pass(hmm::HiddenMarkovModel, 
+                              observations::Array{Int, 1})
     # compute the log forward probabilities
     # log p(x_t, y_{1:t-1}) for t=1,...,T
     # NOTE: we are assuming an observation for each time point
@@ -79,27 +82,27 @@ function log_forward_pass(hmm::HiddenMarkovModel, observations::Array{Int, 1})
     return lfprobs
 end
 
-function marginal_likelihood(hmm::HiddenMarkovModel, 
-                             observations::Array{Int, 1})
+function hmm_marginal_likelihood(hmm::HiddenMarkovModel,
+                                 observations::Array{Int, 1})
     # use the forward probability p(x_T, y_{1:T-1})
-    fprobs = forward_pass(hmm, observations)
+    fprobs = hmm_forward_pass(hmm, observations)
     # p(y_{1:T}) = sum_{x_T} p(x_T, y_{1:T-1}) p(y_T | x_T)
     sum(fprobs[end,:] .* hmm.observation_model[:,observations[end]])
 end
 
-function log_marginal_likelihood(hmm::HiddenMarkovModel, 
+function hmm_log_marginal_likelihood(hmm::HiddenMarkovModel, 
                                  observations::Array{Int, 1})
-    lfprobs = log_forward_pass(hmm, observations)
+    lfprobs = hmm_log_forward_pass(hmm, observations)
     logsumexp(lfprobs[end,:] .+ log(hmm.observation_model[:,observations[end]]))
 end
 
-function posterior_sample(hmm::HiddenMarkovModel, 
+function hmm_posterior_sample(hmm::HiddenMarkovModel, 
                           observations::Array{Int, 1})
     num_steps = length(observations)
-    lfprobs = log_forward_pass(hmm, observations)
+    lfprobs = hmm_log_forward_pass(hmm, observations)
     ldist = lfprobs[end,:] .+ log(hmm.observation_model[:,observations[end]])
     particle = Array{Int,1}(num_steps)
-    particle[end] = rand(Categorical(exp(ldist - logsumexp(ldist)))) # TODO there may be a more numerically precise version
+    particle[end] = rand(Categorical(exp(ldist - logsumexp(ldist))))
     for t = num_steps-1:-1:1
         ldist = lfprobs[t,:]
         ldist = ldist .+ log(hmm.observation_model[:,observations[t]])
