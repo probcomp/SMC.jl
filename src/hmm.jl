@@ -200,7 +200,7 @@ immutable HMMConditionalInitializer
         log_weight = logsumexp(ldist)
         # log normalized distribution
         ldist = ldist - log_weight
-        dist = Categorical(exp(ldist - logsumexp(ldist)))
+        dist = Categorical(exp(ldist))
         new(hmm, observation, dist, log_weight)
     end
 end
