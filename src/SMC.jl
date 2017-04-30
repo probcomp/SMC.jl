@@ -15,5 +15,6 @@ export conditional_smc
 include("mathutils.jl")
 include("generic_smc.jl")
 include("hmm.jl")
+include("hmm_render.jl")
 
 end
