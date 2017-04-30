@@ -7,6 +7,10 @@ export hmm_posterior_sample
 export hmm_log_joint_probability
 export HMMPriorSMCScheme
 export HMMConditionalSMCScheme
+export render_hmm!
+export render_hmm_states!
+export render_hmm_observations!
+
 export logsumexp
 export SMCScheme
 export smc
