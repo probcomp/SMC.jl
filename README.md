@@ -11,6 +11,7 @@ Tested with Julia Version 0.5.1 (2017-03-05 13:25 UTC)
 
 ```
 julia> Pkg.add("Distributions")
+julia> Pkg.add("PyPlot")
 ```
 
 # To run tests:
