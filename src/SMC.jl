@@ -9,6 +9,7 @@ export HMMPriorSMCScheme
 export HMMConditionalSMCScheme
 export render_hmm!
 export render_hmm_states!
+export render_hmm_posterior_marginals!
 export render_hmm_observations!
 
 export logsumexp

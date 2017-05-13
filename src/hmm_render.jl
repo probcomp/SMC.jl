@@ -14,53 +14,46 @@ function render_hmm!(hmm::HiddenMarkovModel)
     # 2. the transition matrix (square matrix)
     # 3. the observation matrix (rectangle)
     # the height is always num_states
-    width_ratios = [1, num_states, num_obs]
-    gs = matplotlib[:gridspec][:GridSpec](1, 3, width_ratios=width_ratios)
-    prior_ax = plt[:subplot](gs[1])
-    trans_ax = plt[:subplot](gs[2])
-    obs_ax = plt[:subplot](gs[3])
+    width_ratios = [num_states, num_obs]
+    gs = matplotlib[:gridspec][:GridSpec](1, 2, width_ratios=width_ratios)
+    trans_ax = plt[:subplot](gs[1])
+    obs_ax = plt[:subplot](gs[2])
     prior_mat = Array{Float64,2}(num_states,1)
     prior_mat[:,1] = hmm.initial_state_prior
-    prior_ax[:imshow](prior_mat, cmap="gray", origin="lower", vmin=0.0, vmax=1.0)
     trans_ax[:imshow](hmm.transition_model, cmap="gray", origin="lower", vmin=0.0, vmax=1.0)
     obs_ax[:imshow](hmm.observation_model, cmap="gray", origin="lower", vmin=0.0, vmax=1.0)
-    prior_ax[:set_title]("start model")
     trans_ax[:set_title]("transition model")
     obs_ax[:set_title]("observation model")
-    for ax in [prior_ax, trans_ax, obs_ax]
+    for ax in [trans_ax, obs_ax]
         ax[:set_yticks](0:num_states-1)
         ax[:set_yticklabels](1:num_states)
     end
-    prior_ax[:set_ylabel]("initial state")
-    prior_ax[:set_xticks]([])
-    prior_ax[:set_ylim]([-0.5, num_states - 0.5])
-    prior_ax[:set_yticks]((1:num_states-1) - 0.5, minor=true)
-    prior_ax[:grid](which="minor", color="orange", linewidth=2)
 
-    trans_ax[:set_ylabel]("previous state")
-    trans_ax[:set_xlabel]("next state")
+    trans_ax[:set_ylabel]("previous state", fontsize=12)
+    trans_ax[:set_xlabel]("next state", fontsize=12)
     trans_ax[:set_xticks](0:num_states-1)
     trans_ax[:set_xticklabels](1:num_states)
     trans_ax[:set_xlim]([-0.5, num_states - 0.5])
     trans_ax[:set_ylim]([-0.5, num_states- 0.5])
     trans_ax[:set_xticks]((1:num_states-1) - 0.5, minor=true)
     trans_ax[:set_yticks]((1:num_states-1) - 0.5, minor=true)
-    trans_ax[:grid](which="minor", color="orange", linewidth=2)
+    #trans_ax[:grid](which="minor", color="orange", linewidth=1)
 
-    obs_ax[:set_ylabel]("state")
-    obs_ax[:set_xlabel]("observation")
+    obs_ax[:set_ylabel]("state", fontsize=12)
+    obs_ax[:set_xlabel]("observation", fontsize=12)
     obs_ax[:set_xticks](0:num_obs-1)
     obs_ax[:set_xticklabels](1:num_obs)
     obs_ax[:set_xlim]([-0.5, num_obs - 0.5])
     obs_ax[:set_ylim]([-0.5, num_states- 0.5])
     obs_ax[:set_xticks]((1:num_obs-1) - 0.5, minor=true)
     obs_ax[:set_yticks]((1:num_states-1) - 0.5, minor=true)
-    obs_ax[:grid](which="minor", color="orange", linewidth=2)
+    #obs_ax[:grid](which="minor", color="orange", linewidth=1)
 
     plt[:tight_layout]()
 end
 
-function render_hmm_states!(hmm::HiddenMarkovModel, states::Array{Int,1})
+function render_hmm_states!(hmm::HiddenMarkovModel, states::Array{Int,1},
+                            grid::Bool=true)
     if maximum(states) > hmm.num_states || minimum(states) < 1
         error("bad states")
     end
@@ -73,10 +66,10 @@ function render_hmm_states!(hmm::HiddenMarkovModel, states::Array{Int,1})
 
     ax[:set_ylabel]("state")
     ax[:set_xlabel]("time step")
-    ax[:set_yticks](0:hmm.num_states-1)
-    ax[:set_yticklabels](1:hmm.num_states)
-    ax[:set_xticks](0:length(states))
-    ax[:set_xticklabels](1:length(states))
+    ax[:set_yticks](0:2:hmm.num_states-1)
+    ax[:set_yticklabels](1:2:hmm.num_states)
+    ax[:set_xticks](0:2:length(states))
+    ax[:set_xticklabels](1:2:length(states))
 
     ax[:set_xlim]([-0.5, length(states) - 0.5])
     ax[:set_ylim]([-0.5, hmm.num_states - 0.5])
@@ -84,8 +77,39 @@ function render_hmm_states!(hmm::HiddenMarkovModel, states::Array{Int,1})
     # set grid lines using minor ticks
     ax[:set_xticks]((1:length(states)-1) - 0.5, minor=true);
     ax[:set_yticks]((1:hmm.num_states-1) - 0.5, minor=true);
-    ax[:grid](which="minor", color="orange", linewidth=2)
+    if grid
+        ax[:grid](which="minor", color="orange", linewidth=1)
+    end
 end
+
+function render_hmm_posterior_marginals!(hmm::HiddenMarkovModel, 
+                                         marginals::Array{Float64,2},
+                                         grid::Bool=true)
+    if size(marginals)[1] != hmm.num_states
+        error("bad states")
+    end
+    num_steps = size(marginals)[2]
+    ax = plt[:gca]()
+    ax[:imshow](marginals, cmap="gray", origin="lower", vmin=0.0, vmax=1.0)
+
+    ax[:set_ylabel]("state", fontsize=12)
+    ax[:set_xlabel]("time step", fontsize=12)
+    ax[:set_yticks](0:2:hmm.num_states-1)
+    ax[:set_yticklabels](1:2:hmm.num_states)
+    ax[:set_xticks](0:2:num_steps)
+    ax[:set_xticklabels](1:2:num_steps)
+
+    ax[:set_xlim]([-0.5, num_steps - 0.5])
+    ax[:set_ylim]([-0.5, hmm.num_states - 0.5])
+
+    # set grid lines using minor ticks
+    #ax[:set_xticks]((1:num_steps-1) - 0.5, minor=true);
+    #ax[:set_yticks]((1:hmm.num_states-1) - 0.5, minor=true);
+    #if grid
+        #ax[:grid](which="minor", color="orange", linewidth=1)
+    #end
+end
+
 
 function render_hmm_observations!(hmm::HiddenMarkovModel, 
                                   observations::Array{Int,1})
@@ -98,17 +122,17 @@ function render_hmm_observations!(hmm::HiddenMarkovModel,
     end
     ax = plt[:gca]()
     ax[:imshow](mat, cmap="gray", origin="lower", vmin=0.0, vmax=1.0)
-    ax[:set_ylabel]("state")
-    ax[:set_xlabel]("time step")
-    ax[:set_yticks](0:hmm.num_obs-1)
-    ax[:set_yticklabels](1:hmm.num_obs)
-    ax[:set_xticks](0:length(observations))
-    ax[:set_xticklabels](1:length(observations))
+    ax[:set_ylabel]("observation", fontsize=12)
+    ax[:set_xlabel]("time step", fontsize=12)
+    ax[:set_yticks](0:2:hmm.num_obs-1)
+    ax[:set_yticklabels](1:2:hmm.num_obs)
+    ax[:set_xticks](0:2:length(observations))
+    ax[:set_xticklabels](1:2:length(observations))
     ax[:set_xlim]([-0.5, length(observations) - 0.5])
     ax[:set_ylim]([-0.5, hmm.num_obs - 0.5])
     # set grid lines using minor ticks
     ax[:set_xticks]((1:length(observations)-1) - 0.5, minor=true);
     ax[:set_yticks]((1:hmm.num_obs-1) - 0.5, minor=true);
-    ax[:grid](which="minor", color="orange", linewidth=2)
+    #ax[:grid](which="minor", color="orange", linewidth=1)
 end
 

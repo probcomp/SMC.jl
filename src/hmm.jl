@@ -13,7 +13,7 @@ immutable HiddenMarkovModel
     function HiddenMarkovModel(initial_state_prior::Array{Float64,1},
                                transition_model::Array{Float64,2}, 
                                observation_model::Array{Float64,2})
-        if sum(initial_state_prior) != 1.
+        if !isapprox(sum(initial_state_prior), 1.)
             error("initial_state_prior is not normalized: $(initial_state_prior)")
         end
         num_states = size(initial_state_prior)[1]
@@ -39,7 +39,7 @@ immutable HiddenMarkovModel
     end
 end
 
-function simulate(hmm::HiddenMarkovModel, num_steps::Int)
+function hmm_simulate(hmm::HiddenMarkovModel, num_steps::Int)
     states = Array{Int, 1}(num_steps)
     observations = Array{Int, 1}(num_steps)
     states[1] = rand(Categorical(hmm.initial_state_prior))

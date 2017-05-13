@@ -1,4 +1,5 @@
 using SMC
+using PyPlot
 using Base.Test
 
 @testset "logsumexp tests" begin
@@ -274,5 +275,27 @@ end
     # SMC with conditional proposal
     srand(1)
     test_bounds(HMMPriorSMCScheme, [1, 3, 10, 30, 100], 1000)
+
+end
+
+@testset "rendering hmm" begin
+    hmm = HiddenMarkovModel(
+        [0.4, 0.6], # prior
+        [0.7 0.3; 
+         0.1 0.9], # transition
+        [0.6 0.3 0.1; 
+         0.1 0.4 0.5]) # observation
+
+    plt[:figure]()
+    render_hmm!(hmm)
+    #plt[:savefig]("hmm.png")
+    
+    plt[:figure]()
+    render_hmm_states!(hmm, [1, 1, 1, 2, 2, 1, 2, 1, 2, 2, 2])
+    #plt[:savefig]("latent_states.png")
+        
+    plt[:figure]()
+    render_hmm_observations!(hmm, [1, 1, 1, 3, 3, 1, 2, 1, 2, 2, 2])
+    #plt[:savefig]("observations.png")
 
 end
