@@ -53,7 +53,7 @@ function render_hmm!(hmm::HiddenMarkovModel)
 end
 
 function render_hmm_states!(hmm::HiddenMarkovModel, states::Array{Int,1},
-                            grid::Bool=true)
+                            grid::Bool, xticks, yticks)
     if maximum(states) > hmm.num_states || minimum(states) < 1
         error("bad states")
     end
@@ -62,52 +62,49 @@ function render_hmm_states!(hmm::HiddenMarkovModel, states::Array{Int,1},
         mat[states[i], i] = 1.0
     end
     ax = plt[:gca]()
-    ax[:imshow](mat, cmap="gray", origin="lower", vmin=0.0, vmax=1.0)
+    # white will be 0.0, and black will be 1.0 (to save ink)
+    ax[:imshow](1.0 - mat, cmap="gray", origin="lower", vmin=0.0, vmax=1.0)
 
-    ax[:set_ylabel]("state")
-    ax[:set_xlabel]("time step")
-    ax[:set_yticks](0:2:hmm.num_states-1)
-    ax[:set_yticklabels](1:2:hmm.num_states)
-    ax[:set_xticks](0:2:length(states))
-    ax[:set_xticklabels](1:2:length(states))
+    ax[:set_yticks](yticks-1)
+    ax[:set_xticks](xticks-1)
+    ax[:set_yticklabels](yticks)
+    ax[:set_xticklabels](xticks)
 
-    ax[:set_xlim]([-0.5, length(states) - 0.5])
-    ax[:set_ylim]([-0.5, hmm.num_states - 0.5])
+    ax[:set_xlim]([-0.5, length(states) - 0.25])
+    ax[:set_ylim]([-0.5, hmm.num_states - 0.25])
 
-    # set grid lines using minor ticks
-    ax[:set_xticks]((1:length(states)-1) - 0.5, minor=true);
-    ax[:set_yticks]((1:hmm.num_states-1) - 0.5, minor=true);
     if grid
+        # set grid lines using minor ticks
+        ax[:set_xticks]((1:length(states)-1) - 0.5, minor=true);
+        ax[:set_yticks]((1:hmm.num_states-1) - 0.5, minor=true);
         ax[:grid](which="minor", color="orange", linewidth=1)
     end
 end
 
 function render_hmm_posterior_marginals!(hmm::HiddenMarkovModel, 
                                          marginals::Array{Float64,2},
-                                         grid::Bool=true)
+                                         grid::Bool, xticks, yticks)
     if size(marginals)[1] != hmm.num_states
         error("bad states")
     end
     num_steps = size(marginals)[2]
     ax = plt[:gca]()
-    ax[:imshow](marginals, cmap="gray", origin="lower", vmin=0.0, vmax=1.0)
+    # white will be 0.0, and black will be 1.0 (to save ink)
+    ax[:imshow](1.0 - marginals, cmap="gray", origin="lower", vmin=0.0, vmax=1.0)
 
-    ax[:set_ylabel]("state", fontsize=12)
-    ax[:set_xlabel]("time step", fontsize=12)
-    ax[:set_yticks](0:2:hmm.num_states-1)
-    ax[:set_yticklabels](1:2:hmm.num_states)
-    ax[:set_xticks](0:2:num_steps)
-    ax[:set_xticklabels](1:2:num_steps)
-
-    ax[:set_xlim]([-0.5, num_steps - 0.5])
-    ax[:set_ylim]([-0.5, hmm.num_states - 0.5])
+    ax[:set_yticks](yticks-1)
+    ax[:set_xticks](xticks-1)
+    ax[:set_yticklabels](yticks)
+    ax[:set_xticklabels](xticks)
+    ax[:set_xlim]([-0.5, num_steps - 0.25])
+    ax[:set_ylim]([-0.5, hmm.num_states - 0.25])
 
     # set grid lines using minor ticks
-    #ax[:set_xticks]((1:num_steps-1) - 0.5, minor=true);
-    #ax[:set_yticks]((1:hmm.num_states-1) - 0.5, minor=true);
-    #if grid
-        #ax[:grid](which="minor", color="orange", linewidth=1)
-    #end
+    if grid
+        ax[:set_xticks]((1:num_steps-1) - 0.5, minor=true);
+        ax[:set_yticks]((1:hmm.num_states-1) - 0.5, minor=true);
+        ax[:grid](which="minor", color="orange", linewidth=1)
+    end
 end
 
 
