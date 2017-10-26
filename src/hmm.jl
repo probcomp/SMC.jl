@@ -110,12 +110,12 @@ function hmm_posterior_sample(hmm::HiddenMarkovModel,
     lfprobs = hmm_log_forward_pass(hmm, observations)
     ldist = lfprobs[end,:] .+ hmm.log_observation_model[:,observations[end]]
     particle = Array{Int,1}(num_steps)
-    particle[end] = rand(Categorical(exp(ldist - logsumexp(ldist))))
+    particle[end] = rand(Categorical(exp.(ldist - logsumexp(ldist))))
     for t = num_steps-1:-1:1
         ldist = lfprobs[t,:]
         ldist = ldist .+ hmm.log_observation_model[:,observations[t]]
         ldist = ldist .+ hmm.log_transition_model[:,particle[t+1]]
-        dist = exp(ldist - logsumexp(ldist))
+        dist = exp.(ldist - logsumexp(ldist))
         particle[t] = rand(Categorical(dist))
     end
     particle 
@@ -200,7 +200,7 @@ immutable HMMConditionalInitializer
         log_weight = logsumexp(ldist)
         # log normalized distribution
         ldist = ldist - log_weight
-        dist = Categorical(exp(ldist))
+        dist = Categorical(exp.(ldist))
         new(hmm, observation, dist, log_weight)
     end
 end

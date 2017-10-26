@@ -1,7 +1,7 @@
 import Distributions.Categorical
 
 function resample(log_weights::Array{Float64,1}, n::Int)
-    dist = exp(log_weights - logsumexp(log_weights))
+    dist = exp.(log_weights - logsumexp(log_weights))
     rand(Categorical(dist), n)
 end
 
