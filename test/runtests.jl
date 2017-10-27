@@ -7,7 +7,7 @@ using Base.Test
     # on vector
     vec = [1., 2.2, 3.1]
     actual = logsumexp(vec)
-    expected = log(sum(exp(vec)))
+    expected = log(sum(exp.(vec)))
     @test isapprox(actual, expected)
 
     # on 2D array

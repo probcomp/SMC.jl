@@ -30,9 +30,9 @@ immutable HiddenMarkovModel
         if !isapprox(sum(observation_model, 2), ones(num_states, 1))
             error("observation_model rows are not all normalized: got $(sum(observation_model, 2))")
         end
-        log_initial_state_prior = log(initial_state_prior)
-        log_transition_model = log(transition_model)
-        log_observation_model = log(observation_model)
+        log_initial_state_prior = log.(initial_state_prior)
+        log_transition_model = log.(transition_model)
+        log_observation_model = log.(observation_model)
         new(initial_state_prior, transition_model, observation_model, 
             log_initial_state_prior, log_transition_model, log_observation_model,
             num_states, num_obs)
