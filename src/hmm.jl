@@ -238,7 +238,7 @@ function forward(incr::HMMConditionalIncrementer, particle::Array{Int,1})
     ldist = lprior .+ incr.llikelihood
     # p(x_t | x_{t-1}, y_t)
     log_weight = logsumexp(ldist)
-    new_component = rand(Categorical(exp(ldist - log_weight)))
+    new_component = rand(Categorical(exp.(ldist - log_weight)))
     new_particle = vcat(particle, [new_component])
     (new_particle, log_weight)
 end
