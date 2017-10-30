@@ -1,6 +1,8 @@
 module SMC
 
 export HiddenMarkovModel
+export num_states
+export num_observations
 export hmm_simulate
 export hmm_log_marginal_likelihood
 export hmm_posterior_sample

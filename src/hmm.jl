@@ -39,6 +39,9 @@ immutable HiddenMarkovModel
     end
 end
 
+num_states(hmm::HiddenMarkovModel) = hmm.num_states
+num_observations(hmm::HiddenMarkovModel) = hmm.num_obs
+
 function hmm_simulate(hmm::HiddenMarkovModel, num_steps::Int)
     states = Array{Int, 1}(num_steps)
     observations = Array{Int, 1}(num_steps)
