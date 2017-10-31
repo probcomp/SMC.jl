@@ -7,8 +7,10 @@ function render_hmm!(hmm::HiddenMarkovModel)
     # plt[:figure]()
     # render!(hmm)
     # plt[:savefig]("hmm.png")
+
     num_states = hmm.num_states
     num_obs = hmm.num_obs
+
     # three subplots left to right:
     # 1. the prior (column vector)
     # 2. the transition matrix (square matrix)
@@ -37,7 +39,6 @@ function render_hmm!(hmm::HiddenMarkovModel)
     trans_ax[:set_ylim]([-0.5, num_states- 0.5])
     trans_ax[:set_xticks]((1:num_states-1) - 0.5, minor=true)
     trans_ax[:set_yticks]((1:num_states-1) - 0.5, minor=true)
-    #trans_ax[:grid](which="minor", color="orange", linewidth=1)
 
     obs_ax[:set_ylabel]("state", fontsize=12)
     obs_ax[:set_xlabel]("observation", fontsize=12)
@@ -47,7 +48,6 @@ function render_hmm!(hmm::HiddenMarkovModel)
     obs_ax[:set_ylim]([-0.5, num_states- 0.5])
     obs_ax[:set_xticks]((1:num_obs-1) - 0.5, minor=true)
     obs_ax[:set_yticks]((1:num_states-1) - 0.5, minor=true)
-    #obs_ax[:grid](which="minor", color="orange", linewidth=1)
 
     plt[:tight_layout]()
 end
@@ -62,6 +62,7 @@ function render_hmm_states!(hmm::HiddenMarkovModel, states::Array{Int,1},
         mat[states[i], i] = 1.0
     end
     ax = plt[:gca]()
+
     # white will be 0.0, and black will be 1.0 (to save ink)
     ax[:imshow](1.0 - mat, cmap="gray", origin="lower", vmin=0.0, vmax=1.0)
 
@@ -89,6 +90,7 @@ function render_hmm_posterior_marginals!(hmm::HiddenMarkovModel,
     end
     num_steps = size(marginals)[2]
     ax = plt[:gca]()
+
     # white will be 0.0, and black will be 1.0 (to save ink)
     ax[:imshow](1.0 - marginals, cmap="gray", origin="lower", vmin=0.0, vmax=1.0)
 
@@ -127,9 +129,9 @@ function render_hmm_observations!(hmm::HiddenMarkovModel,
     ax[:set_xticklabels](1:2:length(observations))
     ax[:set_xlim]([-0.5, length(observations) - 0.5])
     ax[:set_ylim]([-0.5, hmm.num_obs - 0.5])
+
     # set grid lines using minor ticks
     ax[:set_xticks]((1:length(observations)-1) - 0.5, minor=true);
     ax[:set_yticks]((1:hmm.num_obs-1) - 0.5, minor=true);
-    #ax[:grid](which="minor", color="orange", linewidth=1)
 end
 
