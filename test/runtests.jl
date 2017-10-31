@@ -70,7 +70,7 @@ end
         @test isapprox(actual, expected)
 
         # check log space agrees
-        @test isapprox(exp(SMC.hmm_log_forward_pass(hmm, observations)), expected)
+        @test isapprox(exp.(SMC.hmm_log_forward_pass(hmm, observations)), expected)
     end
 
     @testset "marginal likelihoods" begin
@@ -286,16 +286,24 @@ end
         [0.6 0.3 0.1; 
          0.1 0.4 0.5]) # observation
 
+    hmm_fname = "$(tempname()).png"
+    latent_states_fname = "$(tempname()).png"
+    observations_fname = "$(tempname()).png"
+
+    # just check that rendering works in the current environment without crashign
     plt[:figure]()
     render_hmm!(hmm)
-    #plt[:savefig]("hmm.png")
+    plt[:savefig](hmm_fname)
     
     plt[:figure]()
-    render_hmm_states!(hmm, [1, 1, 1, 2, 2, 1, 2, 1, 2, 2, 2])
-    #plt[:savefig]("latent_states.png")
+    render_hmm_states!(hmm, [1, 1, 1, 2, 2, 1, 2, 1, 2, 2, 2], true, [1, 10], [1, 2])
+    plt[:savefig](latent_states_fname)
         
     plt[:figure]()
     render_hmm_observations!(hmm, [1, 1, 1, 3, 3, 1, 2, 1, 2, 2, 2])
-    #plt[:savefig]("observations.png")
+    plt[:savefig](observations_fname)
 
+    Base.Filesystem.rm(hmm_fname)
+    Base.Filesystem.rm(latent_states_fname)
+    Base.Filesystem.rm(observations_fname)
 end
