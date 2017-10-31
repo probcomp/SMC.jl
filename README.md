@@ -3,16 +3,7 @@
 Includes generic SMC and conditional SMC algorithms, and
 specific instantiations of algorithms for HMMs.
 
-WARNING: Gen is unsupported research software.
-
-Tested with Julia Version 0.6.0
-
-# Dependencies
-
-```
-julia> Pkg.add("Distributions")
-julia> Pkg.add("PyPlot")
-```
+WARNING: SMC.jl is unsupported research software.
 
 # Installation
 
