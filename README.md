@@ -1,20 +1,19 @@
-# A Julia implementation of sequential Monte Carlo
+# SMC
 
-Includes generic SMC and conditional SMC algorithms, and
-specific instantiations of algorithms for HMMs.
+SMC.jl is a Julia implementation of generic sequential Monte Carlo and conditional sequential Monte Carlo.
+The package also includes specialized algorithms for discrete HMMs.
 
 WARNING: SMC.jl is unsupported research software.
 
-# Installation
+## Installation
 
 SMC.jl is not a publicly registered Julia package.
 To install:
-
 ```
 julia> Pkg.clone("git@github.com:probcomp/SMC.jl.git")
 ```
 
-# To run tests:
+## To run tests:
 
 ```
 julia> Pkg.test("SMC")
